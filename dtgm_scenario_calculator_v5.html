@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DTGM Scenario Calculator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #ffffff;
+    color: #1a1a1a;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .calculator {
+    max-width: 100%;
+    background: #ffffff;
+    border-radius: 6px;
+  }
+  h2 {
+    color: #005baa;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #005baa;
+  }
+  .portion {
+    background: #f5f9fc;
+    border-left: 3px solid #005baa;
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+  .portion-title {
+    color: #005baa;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .form-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .form-group {
+    flex: 1;
+  }
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 3px;
+  }
+  select, input[type="number"] {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+    background: white;
+    font-family: inherit;
+  }
+  select:focus, input:focus {
+    outline: none;
+    border-color: #005baa;
+    box-shadow: 0 0 0 2px rgba(0, 91, 170, 0.15);
+  }
+  .land-use { flex: 2; }
+  .gfa { flex: 1; }
+
+  .results {
+    border-radius: 5px;
+    padding: 10px 12px;
+    margin-top: 10px;
+  }
+  .results-built, .results-proposed {
+    background: #e6f0f9;
+    border-left: 3px solid #005baa;
+  }
+  .results-combined {
+    background: #005baa;
+    color: white;
+  }
+  .results-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .results-built .results-title,
+  .results-proposed .results-title {
+    color: #005baa;
+  }
+  .results-combined .results-title {
+    opacity: 0.9;
+  }
+
+  /* Grid: Parking standalone | PHG group containing 3 metrics */
+  .results-row {
+    display: grid;
+    grid-template-columns: 1fr 3fr;
+    gap: 8px;
+  }
+  .parking-block {
+    background: rgba(0, 91, 170, 0.08);
+    padding: 6px 8px;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .results-combined .parking-block {
+    background: rgba(255,255,255,0.15);
+  }
+  .phg-block {
+    border: 1px dashed rgba(0, 91, 170, 0.3);
+    border-radius: 3px;
+    padding: 4px 6px 6px 6px;
+  }
+  .results-combined .phg-block {
+    border-color: rgba(255,255,255,0.35);
+  }
+  .phg-label {
+    font-size: 9px;
+    font-weight: 700;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+    text-align: center;
+  }
+  .phg-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+  }
+  .phg-grid .result-card {
+    background: rgba(0, 91, 170, 0.08);
+    padding: 5px 6px;
+    border-radius: 3px;
+  }
+  .results-combined .phg-grid .result-card {
+    background: rgba(255,255,255,0.15);
+  }
+  .result-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 2px;
+    opacity: 0.85;
+  }
+  .result-value {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .results-combined .result-value {
+    font-size: 17px;
+  }
+  .parking-block .result-value {
+    font-size: 16px;
+  }
+  .results-combined .parking-block .result-value {
+    font-size: 19px;
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  button {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .btn-reset {
+    background: #f0f0f0;
+    color: #555;
+  }
+  .btn-reset:hover {
+    background: #e0e0e0;
+  }
+  .small-note {
+    font-size: 10px;
+    color: #888;
+    margin-top: 8px;
+    text-align: center;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+<div class="calculator">
+  <h2>Scenario Calculator</h2>
+
+  <div class="portion">
+    <div class="portion-title">Built Portion</div>
+    <div class="form-row">
+      <div class="form-group land-use">
+        <label for="builtLandUse">Land Use</label>
+        <select id="builtLandUse"><option value="">— None —</option></select>
+      </div>
+      <div class="form-group gfa">
+        <label for="builtGfa">GFA (m²)</label>
+        <input type="number" id="builtGfa" min="0" step="100" placeholder="0">
+      </div>
+    </div>
+  </div>
+
+  <div class="portion">
+    <div class="portion-title">Proposed Portion</div>
+    <div class="form-row">
+      <div class="form-group land-use">
+        <label for="proposedLandUse">Land Use</label>
+        <select id="proposedLandUse"><option value="">— None —</option></select>
+      </div>
+      <div class="form-group gfa">
+        <label for="proposedGfa">GFA (m²)</label>
+        <input type="number" id="proposedGfa" min="0" step="100" placeholder="0">
+      </div>
+    </div>
+  </div>
+
+  <div class="results results-built">
+    <div class="results-title">Built — Indicators</div>
+    <div class="results-row">
+      <div class="parking-block">
+        <div class="result-label">Parking</div>
+        <div class="result-value" id="bParking">0</div>
+      </div>
+      <div class="phg-block">
+        <div class="phg-label">PHG (Peak Hour Generator)</div>
+        <div class="phg-grid">
+          <div class="result-card"><div class="result-label">Trips</div><div class="result-value" id="bTrips">0</div></div>
+          <div class="result-card"><div class="result-label">Inbound</div><div class="result-value" id="bInbound">0</div></div>
+          <div class="result-card"><div class="result-label">Outbound</div><div class="result-value" id="bOutbound">0</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="results results-proposed">
+    <div class="results-title">Proposed — Indicators</div>
+    <div class="results-row">
+      <div class="parking-block">
+        <div class="result-label">Parking</div>
+        <div class="result-value" id="pParking">0</div>
+      </div>
+      <div class="phg-block">
+        <div class="phg-label">PHG (Peak Hour Generator)</div>
+        <div class="phg-grid">
+          <div class="result-card"><div class="result-label">Trips</div><div class="result-value" id="pTrips">0</div></div>
+          <div class="result-card"><div class="result-label">Inbound</div><div class="result-value" id="pInbound">0</div></div>
+          <div class="result-card"><div class="result-label">Outbound</div><div class="result-value" id="pOutbound">0</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="results results-combined">
+    <div class="results-title">Combined Indicators</div>
+    <div class="results-row">
+      <div class="parking-block">
+        <div class="result-label">Parking</div>
+        <div class="result-value" id="cParking">0</div>
+      </div>
+      <div class="phg-block">
+        <div class="phg-label">PHG (Peak Hour Generator)</div>
+        <div class="phg-grid">
+          <div class="result-card"><div class="result-label">Trips</div><div class="result-value" id="cTrips">0</div></div>
+          <div class="result-card"><div class="result-label">Inbound</div><div class="result-value" id="cInbound">0</div></div>
+          <div class="result-card"><div class="result-label">Outbound</div><div class="result-value" id="cOutbound">0</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-reset" onclick="resetCalculator()">Reset</button>
+  </div>
+  <div class="small-note">Refresh the page to clear all values</div>
+</div>
+
+<script>
+const rates = {
+  '111': { name: 'REGIONAL SHOPPING CENTRE', category: 'COMMERCIAL', variable: 100, parking: 2.513, phg: 2.531, pct_in: 0.5, pct_out: 0.5 },
+  '112': { name: 'LOCAL SHOPPING CENTER', category: 'COMMERCIAL', variable: 100, parking: 1.792, phg: 3.209, pct_in: 0.45, pct_out: 0.55 },
+  '113': { name: 'MALLS WITHOUT SUPERSTORE', category: 'COMMERCIAL', variable: 100, parking: 0.761, phg: 0.873, pct_in: 0.54, pct_out: 0.46 },
+  '114': { name: 'SUPERSTORE', category: 'COMMERCIAL', variable: 100, parking: 4.559, phg: 9.801, pct_in: 0.54, pct_out: 0.46 },
+  '115': { name: 'SUPERMARKET', category: 'COMMERCIAL', variable: 100, parking: 3.955, phg: 7.903, pct_in: 0.48, pct_out: 0.52 },
+  '116': { name: 'ON-STREET SHOPPING', category: 'COMMERCIAL', variable: 100, parking: 2.911, phg: 6.855, pct_in: 0.67, pct_out: 0.33 },
+  '121': { name: 'RESTAURANTS', category: 'COMMERCIAL', variable: 100, parking: 9.688, phg: 8.077, pct_in: 0.49, pct_out: 0.51 },
+  '122': { name: 'FAST FOOD RESTAURANT', category: 'COMMERCIAL', variable: 100, parking: 18.246, phg: 54.862, pct_in: 0.49, pct_out: 0.51 },
+  '131': { name: 'GAS STATION', category: 'COMMERCIAL', variable: 1, parking: 2.469, phg: 20.748, pct_in: 0.493, pct_out: 0.507 },
+  '141': { name: 'FURNITURE STORE', category: 'COMMERCIAL', variable: 100, parking: 0.86, phg: 0.535, pct_in: 0.42, pct_out: 0.58 },
+  '142': { name: 'ELECTRONIC STORE', category: 'COMMERCIAL', variable: 100, parking: 2.635, phg: 9.444, pct_in: 0.48, pct_out: 0.52 },
+  '143': { name: 'BOOK/MUSIC SUPERSTORE', category: 'COMMERCIAL', variable: 100, parking: 8.172, phg: 8.296, pct_in: 0.51, pct_out: 0.49 },
+  '144': { name: 'BABY SUPERSTORE', category: 'COMMERCIAL', variable: 100, parking: 2.781, phg: 2.076, pct_in: 0.48, pct_out: 0.52 },
+  '145': { name: 'BUILDING MATERIAL STORE', category: 'COMMERCIAL', variable: 100, parking: 3.894, phg: 7.943, pct_in: 0.52, pct_out: 0.48 },
+  '146': { name: 'GARMENT/JEWELLERY SHOWROOM', category: 'COMMERCIAL', variable: 100, parking: 2.122, phg: 4.304, pct_in: 0.45, pct_out: 0.55 },
+  '147': { name: 'VEHICLE SHOWROOM', category: 'COMMERCIAL', variable: 100, parking: 1.318, phg: 2.263, pct_in: 0.5, pct_out: 0.5 },
+  '211': { name: 'LOCAL GOVERNMENT / ADMIN BUILDING', category: 'OFFICE', variable: 100, parking: 1.754, phg: 1.908, pct_in: 0.56, pct_out: 0.44 },
+  '221': { name: 'EXCLUSIVE OFFICE BUILDING', category: 'OFFICE', variable: 100, parking: 1.839, phg: 1.339, pct_in: 0.42, pct_out: 0.58 },
+  '222': { name: 'MULTI-USER OFFICE BUILDING', category: 'OFFICE', variable: 100, parking: 1.699, phg: 2.076, pct_in: 0.7, pct_out: 0.3 },
+  '231': { name: 'POST AND COURIER', category: 'OFFICE', variable: 100, parking: 4.555, phg: 9.1, pct_in: 0.5, pct_out: 0.5 },
+  '232': { name: 'COMP. & TELECOM. SERVICE PROVIDER', category: 'OFFICE', variable: 100, parking: 4.067, phg: 4.247, pct_in: 0.5, pct_out: 0.5 },
+  '233': { name: 'IMMIGRATION CENTRE / VISA OFFICE', category: 'OFFICE', variable: 100, parking: 5.942, phg: 4.083, pct_in: 0.42, pct_out: 0.58 },
+  '234': { name: 'EMBASSY AND CONSULATE', category: 'OFFICE', variable: 100, parking: 2.409, phg: 2.189, pct_in: 0.44, pct_out: 0.56 },
+  '235': { name: 'BANKING SERVICE', category: 'OFFICE', variable: 100, parking: 14.221, phg: 12.125, pct_in: 0.68, pct_out: 0.32 },
+  '311': { name: 'NURSERY / CHILD CARE', category: 'INSTITUTIONAL', variable: 100, parking: 4.086, phg: 6.133, pct_in: 0.63, pct_out: 0.37 },
+  '312': { name: 'GOVERNMENT KINDERGARTEN', category: 'INSTITUTIONAL', variable: 100, parking: 1.912, phg: 6.133, pct_in: 0.63, pct_out: 0.37 },
+  '313': { name: 'GOVT PRIMARY & INTERMEDIATE SCHOOL', category: 'INSTITUTIONAL', variable: 100, parking: 1.473, phg: 2.75, pct_in: 0.64, pct_out: 0.36 },
+  '314': { name: 'GOVERNMENTAL SECONDARY SCHOOL', category: 'INSTITUTIONAL', variable: 100, parking: 1.141, phg: 2.111, pct_in: 0.29, pct_out: 0.71 },
+  '315': { name: 'PRIVATE SCHOOL', category: 'INSTITUTIONAL', variable: 100, parking: 2.456, phg: 4.814, pct_in: 0.56, pct_out: 0.44 },
+  '321': { name: 'HIGHER EDUCATION / UNIVERSITY', category: 'INSTITUTIONAL', variable: 100, parking: 1.137, phg: 1.009, pct_in: 0.39, pct_out: 0.61 },
+  '322': { name: 'PROFESSIONAL INSTITUTION', category: 'INSTITUTIONAL', variable: 100, parking: 2.932, phg: 1.421, pct_in: 0.98, pct_out: 0.02 },
+  '323': { name: 'MOTOR DRIVING INSTITUTE', category: 'INSTITUTIONAL', variable: 100, parking: 2.957, phg: 4.558, pct_in: 0.52, pct_out: 0.48 },
+  '331': { name: 'LIBRARY', category: 'INSTITUTIONAL', variable: 100, parking: 0.267, phg: 0.413, pct_in: 0.48, pct_out: 0.52 },
+  '332': { name: 'EXHIBITION GALLERY AND MUSEUM', category: 'INSTITUTIONAL', variable: 100, parking: 0.543, phg: 0.64, pct_in: 0.6, pct_out: 0.4 },
+  '333': { name: 'JUMMA MOSQUE', category: 'INSTITUTIONAL', variable: 100, parking: 6.46, phg: 0.901, pct_in: 0.48, pct_out: 0.52 },
+  '334': { name: 'OTHER RELIGIOUS BUILDINGS', category: 'INSTITUTIONAL', variable: 100, parking: 11.661, phg: 12.279, pct_in: 0.53, pct_out: 0.47 },
+  '411': { name: '1 & 2 STAR HOTEL', category: 'HOTEL', variable: 100, parking: 1.01, phg: 1.153, pct_in: 0.44, pct_out: 0.56 },
+  '412': { name: '3 & 4 STAR HOTEL', category: 'HOTEL', variable: 100, parking: 0.487, phg: 0.715, pct_in: 0.57, pct_out: 0.43 },
+  '413': { name: '5 STAR HOTEL', category: 'HOTEL', variable: 100, parking: 0.606, phg: 0.524, pct_in: 0.54, pct_out: 0.46 },
+  '414': { name: 'RESORT HOTEL', category: 'HOTEL', variable: 100, parking: 0.419, phg: 0.708, pct_in: 0.48, pct_out: 0.52 },
+  '421': { name: 'SUITES / APARTMENT HOTEL', category: 'HOTEL', variable: 100, parking: 0.738, phg: 0.497, pct_in: 0.62, pct_out: 0.38 },
+  '511': { name: 'CINEMA / THEATRE', category: 'RECREATIONAL', variable: 100, parking: 5.695, phg: 2.057, pct_in: 0.23, pct_out: 0.77 },
+  '521': { name: 'PARK & BEACH', category: 'RECREATIONAL', variable: 1000, parking: 1.703, phg: 2.51, pct_in: 0.5, pct_out: 0.5 },
+  '522': { name: 'ACTIVITY ORIENTED REGIONAL PARK', category: 'RECREATIONAL', variable: 1000, parking: 1.191, phg: 1.175, pct_in: 0.52, pct_out: 0.48 },
+  '523': { name: 'MARINA', category: 'RECREATIONAL', variable: 1, parking: 0.161, phg: 0.154, pct_in: 0.49, pct_out: 0.51 },
+  '524': { name: 'ZOO', category: 'RECREATIONAL', variable: 100, parking: 1.484, phg: 1.66, pct_in: 0.46, pct_out: 0.54 },
+  '531': { name: 'RECREATIONAL SPORTS CLUB', category: 'RECREATIONAL', variable: 100, parking: 2.068, phg: 1.975, pct_in: 0.51, pct_out: 0.49 },
+  '532': { name: 'SPECIAL SPORT CENTRE', category: 'RECREATIONAL', variable: 100, parking: 3.209, phg: 3.207, pct_in: 0.52, pct_out: 0.48 },
+  '533': { name: 'MOTOR RACE TRACKS', category: 'RECREATIONAL', variable: 1000, parking: 0.068, phg: 0.061, pct_in: 0.27, pct_out: 0.73 },
+  '534': { name: 'GOLF COURSE', category: 'RECREATIONAL', variable: 1000, parking: 0.209, phg: 0.14, pct_in: 0.5, pct_out: 0.5 },
+  '611': { name: 'PRODUCTION ORIENTED INDUSTRY', category: 'INDUSTRIAL', variable: 100, parking: 0.595, phg: 1.188, pct_in: 0.29, pct_out: 0.71 },
+  '612': { name: 'SERVICE ORIENTED INDUSTRY', category: 'INDUSTRIAL', variable: 100, parking: 7.774, phg: 6.732, pct_in: 0.5, pct_out: 0.5 },
+  '613': { name: 'WAREHOUSE', category: 'INDUSTRIAL', variable: 100, parking: 0.377, phg: 0.464, pct_in: 0.44, pct_out: 0.56 },
+  '621': { name: 'MEDIUM INDUSTRY', category: 'INDUSTRIAL', variable: 100, parking: 0.375, phg: 0.52, pct_in: 0.47, pct_out: 0.53 },
+  '631': { name: 'HEAVY INDUSTRY', category: 'INDUSTRIAL', variable: 100, parking: 0.045, phg: 0.061, pct_in: 0.3, pct_out: 0.7 },
+  '701': { name: 'RESIDENTIAL APARTMENTS', category: 'RESIDENTIAL', variable: 100, parking: 0.633, phg: 0.6, pct_in: 0.55, pct_out: 0.45 },
+  '721': { name: 'STANDALONE VILLA', category: 'RESIDENTIAL', variable: 1, parking: 9, phg: 6.324, pct_in: 0.58, pct_out: 0.42 },
+  '722': { name: 'COMPOUND VILLA', category: 'RESIDENTIAL', variable: 1, parking: 1.685, phg: 0.817, pct_in: 0.3, pct_out: 0.7 },
+  '731': { name: 'LABOUR CAMP', category: 'RESIDENTIAL', variable: 100, parking: 0.091, phg: 0.161, pct_in: 0.86, pct_out: 0.14 },
+  '732': { name: 'COMPANY ACCOMODATION', category: 'RESIDENTIAL', variable: 100, parking: 0.139, phg: 0.356, pct_in: 0.69, pct_out: 0.31 },
+  '811': { name: 'GOVERNMENT HOSPITAL', category: 'MEDICAL', variable: 100, parking: 1.721, phg: 3.263, pct_in: 0.49, pct_out: 0.51 },
+  '812': { name: 'PRIVATE HOSPITAL', category: 'MEDICAL', variable: 100, parking: 3.303, phg: 4.062, pct_in: 0.54, pct_out: 0.46 },
+  '821': { name: 'GOVERNMENT CLINIC', category: 'MEDICAL', variable: 100, parking: 4.378, phg: 12.91, pct_in: 0.59, pct_out: 0.41 },
+  '822': { name: 'PRIVATE CLINIC', category: 'MEDICAL', variable: 100, parking: 3.91, phg: 5.225, pct_in: 0.5, pct_out: 0.5 },
+  '831': { name: 'PHARMACY', category: 'MEDICAL', variable: 100, parking: 18.852, phg: 20.838, pct_in: 0.55, pct_out: 0.45 },
+  '911': { name: 'BUS STATION', category: 'TRANSPORT', variable: 100, parking: 1.126, phg: 4.361, pct_in: 0.51, pct_out: 0.49 }
+};
+
+function populateDropdowns() {
+  const categories = {};
+  for (const code in rates) {
+    const r = rates[code];
+    if (!categories[r.category]) categories[r.category] = [];
+    categories[r.category].push({ code, name: r.name });
+  }
+  const builtSelect = document.getElementById('builtLandUse');
+  const proposedSelect = document.getElementById('proposedLandUse');
+  for (const cat in categories) {
+    const g1 = document.createElement('optgroup'); g1.label = cat;
+    const g2 = document.createElement('optgroup'); g2.label = cat;
+    categories[cat].forEach(item => {
+      const o1 = document.createElement('option'); o1.value = item.code; o1.textContent = item.name; g1.appendChild(o1);
+      const o2 = document.createElement('option'); o2.value = item.code; o2.textContent = item.name; g2.appendChild(o2);
+    });
+    builtSelect.appendChild(g1);
+    proposedSelect.appendChild(g2);
+  }
+}
+
+function calcPortion(code, gfa) {
+  if (!code || !gfa || gfa <= 0) return { parking: 0, trips: 0, inbound: 0, outbound: 0 };
+  const r = rates[code];
+  if (!r) return { parking: 0, trips: 0, inbound: 0, outbound: 0 };
+  const parking = (gfa / r.variable) * r.parking;
+  const trips = (gfa / r.variable) * r.phg;
+  return { parking, trips, inbound: trips * r.pct_in, outbound: trips * r.pct_out };
+}
+
+function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+
+function updateResults() {
+  const built = calcPortion(document.getElementById('builtLandUse').value, parseFloat(document.getElementById('builtGfa').value) || 0);
+  const proposed = calcPortion(document.getElementById('proposedLandUse').value, parseFloat(document.getElementById('proposedGfa').value) || 0);
+
+  document.getElementById('bParking').textContent = fmt(built.parking);
+  document.getElementById('bTrips').textContent = fmt(built.trips);
+  document.getElementById('bInbound').textContent = fmt(built.inbound);
+  document.getElementById('bOutbound').textContent = fmt(built.outbound);
+
+  document.getElementById('pParking').textContent = fmt(proposed.parking);
+  document.getElementById('pTrips').textContent = fmt(proposed.trips);
+  document.getElementById('pInbound').textContent = fmt(proposed.inbound);
+  document.getElementById('pOutbound').textContent = fmt(proposed.outbound);
+
+  document.getElementById('cParking').textContent = fmt(built.parking + proposed.parking);
+  document.getElementById('cTrips').textContent = fmt(built.trips + proposed.trips);
+  document.getElementById('cInbound').textContent = fmt(built.inbound + proposed.inbound);
+  document.getElementById('cOutbound').textContent = fmt(built.outbound + proposed.outbound);
+}
+
+function resetCalculator() {
+  ['builtLandUse', 'builtGfa', 'proposedLandUse', 'proposedGfa'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  updateResults();
+}
+
+populateDropdowns();
+['builtLandUse', 'builtGfa', 'proposedLandUse', 'proposedGfa'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('change', updateResults);
+  el.addEventListener('input', updateResults);
+});
+updateResults();
+</script>
+</body>
+</html>
