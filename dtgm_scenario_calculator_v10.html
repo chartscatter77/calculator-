@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DTGM Scenario Calculator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #ffffff; color: #1a1a1a; padding: 16px; font-size: 13px; line-height: 1.4;
+  }
+  .calculator { max-width: 100%; background: #ffffff; border-radius: 6px; }
+  h2 {
+    color: #005baa; font-size: 16px; font-weight: 700;
+    margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #005baa;
+  }
+
+  .import-box {
+    background: #f5f9fc; border-left: 3px solid #005baa; border-radius: 4px;
+    padding: 10px 12px; margin-bottom: 14px;
+  }
+  .portion-title {
+    color: #005baa; font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  textarea#pasteBox {
+    width: 100%; min-height: 72px; border: 1px solid #ccc; border-radius: 3px;
+    padding: 6px 8px; font: 12px Consolas, 'Courier New', monospace; resize: vertical; background: #fff;
+  }
+  textarea#pasteBox:focus { outline: none; border-color: #005baa; box-shadow: 0 0 0 2px rgba(0,91,170,0.15); }
+
+  .section-title { color: #005baa; font-size: 13px; font-weight: 700; margin: 16px 0 6px; }
+
+  table.scn { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.scn th, table.scn td { border: 1px solid #d8e2ec; padding: 5px 7px; text-align: left; vertical-align: top; }
+  table.scn th { background: #eef3f8; color: #005baa; font-weight: 700; font-size: 11px; }
+  table.scn th.grp { text-align: center; }
+  table.scn td.num, table.scn th.num { text-align: right; white-space: nowrap; }
+  table.scn td.lu { line-height: 1.2; }
+  table.scn td .cat { display: block; font-size: 9px; color: #9aa6b2; text-transform: uppercase; letter-spacing: 0.3px; }
+  table.scn td .nomatch { display: block; font-size: 9px; color: #c0392b; text-transform: uppercase; letter-spacing: 0.3px; }
+  table.scn tfoot tr.total td { background: #f4f7fa; font-weight: 700; }
+  table.scn .empty { color: #9aa6b2; font-style: italic; text-align: center; }
+  table.scn select, table.scn input {
+    width: 100%; border: 1px solid #ccc; border-radius: 3px; padding: 4px 5px;
+    font-size: 11px; font-family: inherit; background: #fff;
+  }
+  table.scn select:focus, table.scn input:focus { outline: none; border-color: #005baa; box-shadow: 0 0 0 2px rgba(0,91,170,0.15); }
+  table.scn td.rem { text-align: center; padding: 2px 4px; }
+
+  .up { color: #c0392b; }   /* increase = worse */
+  .down { color: #1e8449; } /* reduction = better */
+  .zero { color: #888; }
+
+  /* GFA tracker */
+  .gfa-track { display: flex; gap: 8px; margin-bottom: 8px; }
+  .gfa-track .gt {
+    flex: 1; background: #f5f9fc; border: 1px solid #d8e2ec; border-left: 3px solid #005baa;
+    border-radius: 4px; padding: 6px 8px;
+  }
+  .gfa-track .gt-l { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; color: #777; }
+  .gfa-track .gt-v { display: block; font-size: 15px; font-weight: 700; color: #1a1a1a; }
+  .gfa-track .gt-v.over { color: #c0392b; }
+
+  /* Verdict banner */
+  .verdict { padding: 7px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  .verdict.ok  { background: #e4f5e9; color: #1e8449; border: 1px solid #b8e0c5; }
+  .verdict.bad { background: #fdecea; color: #c0392b; border: 1px solid #f2c4be; }
+
+  .actions { display: flex; gap: 8px; margin-top: 8px; }
+  button { flex: 1; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
+  .btn-load { background: #005baa; color: #fff; }
+  .btn-load:hover { background: #004a8c; }
+  .btn-reset { background: #f0f0f0; color: #555; }
+  .btn-reset:hover { background: #e0e0e0; }
+  .btn-add { flex: none; width: auto; margin-top: 6px; padding: 6px 12px; background: #eef3f8; color: #005baa; border: 1px solid #cfe0ee; font-size: 11px; }
+  .btn-add:hover { background: #e2edf7; }
+  button.rmv {
+    flex: none; width: 22px; height: 22px; padding: 0; background: #fbe9e7; color: #c0392b;
+    border: 1px solid #f2c4be; border-radius: 3px; font-size: 14px; line-height: 1;
+  }
+  button.rmv:hover { background: #f6d4cf; }
+  .legend { font-size: 10px; color: #777; margin-top: 5px; }
+  .legend b { color: #555; }
+
+  /* Section colour identities: Actual = blue, Proposed = teal, Combined = plum */
+  .section-title { border-left: 4px solid #005baa; padding-left: 8px; }
+  .section-title.act  { border-color: #005baa; color: #005baa; }
+  .section-title.prop { border-color: #0d7d7d; color: #0d7d7d; }
+  .section-title.comb { border-color: #7a4ea0; color: #7a4ea0; }
+  table.scn.act th  { background: #eaf2fa; color: #005baa; }
+  table.scn.prop th { background: #e4f3f2; color: #0d7d7d; }
+  table.scn.comb th { background: #f1eaf7; color: #7a4ea0; }
+  table.scn.prop select:focus, table.scn.prop input:focus { border-color: #0d7d7d; box-shadow: 0 0 0 2px rgba(13,125,125,0.15); }
+  .gfa-track .gt { border-left-color: #0d7d7d; }
+  table.scn.comb td.heat { color: #1a1a1a; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="calculator">
+  <h2>Scenario Calculator</h2>
+
+  <div class="import-box">
+    <div class="portion-title">Load Selection</div>
+    <textarea id="pasteBox" placeholder="Paste rows copied from the map summary, one per line:&#10;RESORT HOTEL|128838|912|540&#10;MALLS WITHOUT SUPERSTORE|71833|627|547"></textarea>
+    <div class="actions">
+      <button class="btn-load" onclick="loadSelection()">Load</button>
+      <button class="btn-reset" onclick="clearAll()">Clear</button>
+    </div>
+    <div class="legend">One row per line as <b>Land Use|GFA|Trips|Parking</b>. Trips and Parking come from the plot layer; Inbound/Outbound are split from Trips by the land use. Commas are ignored.</div>
+  </div>
+
+  <div class="section-title act">Actual (Built)</div>
+  <table class="scn act">
+    <thead>
+      <tr>
+        <th class="lu" rowspan="2">Land Use</th>
+        <th class="num" rowspan="2">GFA (m²)</th>
+        <th class="grp" colspan="3">PHG (Peak Hour Generator)</th>
+        <th class="num" rowspan="2">Parking</th>
+      </tr>
+      <tr><th class="num">Trips</th><th class="num">Inbound</th><th class="num">Outbound</th></tr>
+    </thead>
+    <tbody id="actualBody"></tbody>
+    <tfoot id="actualFoot"></tfoot>
+  </table>
+
+  <div class="section-title prop">Proposed (editable)</div>
+  <div class="gfa-track" id="gfaTrack">
+    <div class="gt"><span class="gt-l">Actual GFA</span><span class="gt-v" id="gtBudget">0</span></div>
+    <div class="gt"><span class="gt-l">Proposed GFA used</span><span class="gt-v" id="gtUsed">0</span></div>
+    <div class="gt"><span class="gt-l">Remaining</span><span class="gt-v" id="gtRemain">0</span></div>
+  </div>
+  <table class="scn prop">
+    <thead>
+      <tr>
+        <th rowspan="2">Land Use</th>
+        <th class="num" rowspan="2">GFA (m²)</th>
+        <th class="grp" colspan="3">PHG (Peak Hour Generator)</th>
+        <th class="num" rowspan="2">Parking</th>
+        <th rowspan="2"></th>
+      </tr>
+      <tr><th class="num">Trips</th><th class="num">Inbound</th><th class="num">Outbound</th></tr>
+    </thead>
+    <tbody id="proposedBody"></tbody>
+    <tfoot id="proposedFoot"></tfoot>
+  </table>
+  <button class="btn-add" onclick="addProposedRow()">+ Add land use</button>
+
+  <div class="section-title comb">Combined — Change (Proposed − Actual)</div>
+  <div class="verdict" id="verdict" style="display:none;"></div>
+  <table class="scn comb">
+    <thead>
+      <tr>
+        <th class="lu" rowspan="2">Land Use</th>
+        <th class="grp" colspan="3">PHG (Peak Hour Generator) — Δ</th>
+        <th class="num" rowspan="2">Δ Parking</th>
+      </tr>
+      <tr><th class="num">Δ Trips</th><th class="num">Δ Inbound</th><th class="num">Δ Outbound</th></tr>
+    </thead>
+    <tbody id="combinedBody"></tbody>
+    <tfoot id="combinedFoot"></tfoot>
+  </table>
+  <div class="legend"><span class="up">red = increase (worse)</span> &nbsp;·&nbsp; <span class="down">green = reduction (better)</span></div>
+</div>
+
+<script>
+const rates = {
+  '111': { name: 'REGIONAL SHOPPING CENTRE', category: 'COMMERCIAL', variable: 100, parking: 2.513, phg: 2.531, pct_in: 0.5, pct_out: 0.5 },
+  '112': { name: 'LOCAL SHOPPING CENTER', category: 'COMMERCIAL', variable: 100, parking: 1.792, phg: 3.209, pct_in: 0.45, pct_out: 0.55 },
+  '113': { name: 'MALLS WITHOUT SUPERSTORE', category: 'COMMERCIAL', variable: 100, parking: 0.761, phg: 0.873, pct_in: 0.54, pct_out: 0.46 },
+  '114': { name: 'SUPERSTORE', category: 'COMMERCIAL', variable: 100, parking: 4.559, phg: 9.801, pct_in: 0.54, pct_out: 0.46 },
+  '115': { name: 'SUPERMARKET', category: 'COMMERCIAL', variable: 100, parking: 3.955, phg: 7.903, pct_in: 0.48, pct_out: 0.52 },
+  '116': { name: 'ON-STREET SHOPPING', category: 'COMMERCIAL', variable: 100, parking: 2.911, phg: 6.855, pct_in: 0.67, pct_out: 0.33 },
+  '121': { name: 'RESTAURANTS', category: 'COMMERCIAL', variable: 100, parking: 9.688, phg: 8.077, pct_in: 0.49, pct_out: 0.51 },
+  '122': { name: 'FAST FOOD RESTAURANT', category: 'COMMERCIAL', variable: 100, parking: 18.246, phg: 54.862, pct_in: 0.49, pct_out: 0.51 },
+  '131': { name: 'GAS STATION', category: 'COMMERCIAL', variable: 1, parking: 2.469, phg: 20.748, pct_in: 0.493, pct_out: 0.507 },
+  '141': { name: 'FURNITURE STORE', category: 'COMMERCIAL', variable: 100, parking: 0.86, phg: 0.535, pct_in: 0.42, pct_out: 0.58 },
+  '142': { name: 'ELECTRONIC STORE', category: 'COMMERCIAL', variable: 100, parking: 2.635, phg: 9.444, pct_in: 0.48, pct_out: 0.52 },
+  '143': { name: 'BOOK/MUSIC SUPERSTORE', category: 'COMMERCIAL', variable: 100, parking: 8.172, phg: 8.296, pct_in: 0.51, pct_out: 0.49 },
+  '144': { name: 'BABY SUPERSTORE', category: 'COMMERCIAL', variable: 100, parking: 2.781, phg: 2.076, pct_in: 0.48, pct_out: 0.52 },
+  '145': { name: 'BUILDING MATERIAL STORE', category: 'COMMERCIAL', variable: 100, parking: 3.894, phg: 7.943, pct_in: 0.52, pct_out: 0.48 },
+  '146': { name: 'GARMENT/JEWELLERY SHOWROOM', category: 'COMMERCIAL', variable: 100, parking: 2.122, phg: 4.304, pct_in: 0.45, pct_out: 0.55 },
+  '147': { name: 'VEHICLE SHOWROOM', category: 'COMMERCIAL', variable: 100, parking: 1.318, phg: 2.263, pct_in: 0.5, pct_out: 0.5 },
+  '211': { name: 'LOCAL GOVERNMENT / ADMIN BUILDING', category: 'OFFICE', variable: 100, parking: 1.754, phg: 1.908, pct_in: 0.56, pct_out: 0.44 },
+  '221': { name: 'EXCLUSIVE OFFICE BUILDING', category: 'OFFICE', variable: 100, parking: 1.839, phg: 1.339, pct_in: 0.42, pct_out: 0.58 },
+  '222': { name: 'MULTI-USER OFFICE BUILDING', category: 'OFFICE', variable: 100, parking: 1.699, phg: 2.076, pct_in: 0.7, pct_out: 0.3 },
+  '231': { name: 'POST AND COURIER', category: 'OFFICE', variable: 100, parking: 4.555, phg: 9.1, pct_in: 0.5, pct_out: 0.5 },
+  '232': { name: 'COMP. & TELECOM. SERVICE PROVIDER', category: 'OFFICE', variable: 100, parking: 4.067, phg: 4.247, pct_in: 0.5, pct_out: 0.5 },
+  '233': { name: 'IMMIGRATION CENTRE / VISA OFFICE', category: 'OFFICE', variable: 100, parking: 5.942, phg: 4.083, pct_in: 0.42, pct_out: 0.58 },
+  '234': { name: 'EMBASSY AND CONSULATE', category: 'OFFICE', variable: 100, parking: 2.409, phg: 2.189, pct_in: 0.44, pct_out: 0.56 },
+  '235': { name: 'BANKING SERVICE', category: 'OFFICE', variable: 100, parking: 14.221, phg: 12.125, pct_in: 0.68, pct_out: 0.32 },
+  '311': { name: 'NURSERY / CHILD CARE', category: 'INSTITUTIONAL', variable: 100, parking: 4.086, phg: 6.133, pct_in: 0.63, pct_out: 0.37 },
+  '312': { name: 'GOVERNMENT KINDERGARTEN', category: 'INSTITUTIONAL', variable: 100, parking: 1.912, phg: 6.133, pct_in: 0.63, pct_out: 0.37 },
+  '313': { name: 'GOVT PRIMARY & INTERMEDIATE SCHOOL', category: 'INSTITUTIONAL', variable: 100, parking: 1.473, phg: 2.75, pct_in: 0.64, pct_out: 0.36 },
+  '314': { name: 'GOVERNMENTAL SECONDARY SCHOOL', category: 'INSTITUTIONAL', variable: 100, parking: 1.141, phg: 2.111, pct_in: 0.29, pct_out: 0.71 },
+  '315': { name: 'PRIVATE SCHOOL', category: 'INSTITUTIONAL', variable: 100, parking: 2.456, phg: 4.814, pct_in: 0.56, pct_out: 0.44 },
+  '321': { name: 'HIGHER EDUCATION / UNIVERSITY', category: 'INSTITUTIONAL', variable: 100, parking: 1.137, phg: 1.009, pct_in: 0.39, pct_out: 0.61 },
+  '322': { name: 'PROFESSIONAL INSTITUTION', category: 'INSTITUTIONAL', variable: 100, parking: 2.932, phg: 1.421, pct_in: 0.98, pct_out: 0.02 },
+  '323': { name: 'MOTOR DRIVING INSTITUTE', category: 'INSTITUTIONAL', variable: 100, parking: 2.957, phg: 4.558, pct_in: 0.52, pct_out: 0.48 },
+  '331': { name: 'LIBRARY', category: 'INSTITUTIONAL', variable: 100, parking: 0.267, phg: 0.413, pct_in: 0.48, pct_out: 0.52 },
+  '332': { name: 'EXHIBITION GALLERY AND MUSEUM', category: 'INSTITUTIONAL', variable: 100, parking: 0.543, phg: 0.64, pct_in: 0.6, pct_out: 0.4 },
+  '333': { name: 'JUMMA MOSQUE', category: 'INSTITUTIONAL', variable: 100, parking: 6.46, phg: 0.901, pct_in: 0.48, pct_out: 0.52 },
+  '334': { name: 'OTHER RELIGIOUS BUILDINGS', category: 'INSTITUTIONAL', variable: 100, parking: 11.661, phg: 12.279, pct_in: 0.53, pct_out: 0.47 },
+  '411': { name: '1 & 2 STAR HOTEL', category: 'HOTEL', variable: 100, parking: 1.01, phg: 1.153, pct_in: 0.44, pct_out: 0.56 },
+  '412': { name: '3 & 4 STAR HOTEL', category: 'HOTEL', variable: 100, parking: 0.487, phg: 0.715, pct_in: 0.57, pct_out: 0.43 },
+  '413': { name: '5 STAR HOTEL', category: 'HOTEL', variable: 100, parking: 0.606, phg: 0.524, pct_in: 0.54, pct_out: 0.46 },
+  '414': { name: 'RESORT HOTEL', category: 'HOTEL', variable: 100, parking: 0.419, phg: 0.708, pct_in: 0.48, pct_out: 0.52 },
+  '421': { name: 'SUITES / APARTMENT HOTEL', category: 'HOTEL', variable: 100, parking: 0.738, phg: 0.497, pct_in: 0.62, pct_out: 0.38 },
+  '511': { name: 'CINEMA / THEATRE', category: 'RECREATIONAL', variable: 100, parking: 5.695, phg: 2.057, pct_in: 0.23, pct_out: 0.77 },
+  '521': { name: 'PARK & BEACH', category: 'RECREATIONAL', variable: 1000, parking: 1.703, phg: 2.51, pct_in: 0.5, pct_out: 0.5 },
+  '522': { name: 'ACTIVITY ORIENTED REGIONAL PARK', category: 'RECREATIONAL', variable: 1000, parking: 1.191, phg: 1.175, pct_in: 0.52, pct_out: 0.48 },
+  '523': { name: 'MARINA', category: 'RECREATIONAL', variable: 1, parking: 0.161, phg: 0.154, pct_in: 0.49, pct_out: 0.51 },
+  '524': { name: 'ZOO', category: 'RECREATIONAL', variable: 100, parking: 1.484, phg: 1.66, pct_in: 0.46, pct_out: 0.54 },
+  '531': { name: 'RECREATIONAL SPORTS CLUB', category: 'RECREATIONAL', variable: 100, parking: 2.068, phg: 1.975, pct_in: 0.51, pct_out: 0.49 },
+  '532': { name: 'SPECIAL SPORT CENTRE', category: 'RECREATIONAL', variable: 100, parking: 3.209, phg: 3.207, pct_in: 0.52, pct_out: 0.48 },
+  '533': { name: 'MOTOR RACE TRACKS', category: 'RECREATIONAL', variable: 1000, parking: 0.068, phg: 0.061, pct_in: 0.27, pct_out: 0.73 },
+  '534': { name: 'GOLF COURSE', category: 'RECREATIONAL', variable: 1000, parking: 0.209, phg: 0.14, pct_in: 0.5, pct_out: 0.5 },
+  '611': { name: 'PRODUCTION ORIENTED INDUSTRY', category: 'INDUSTRIAL', variable: 100, parking: 0.595, phg: 1.188, pct_in: 0.29, pct_out: 0.71 },
+  '612': { name: 'SERVICE ORIENTED INDUSTRY', category: 'INDUSTRIAL', variable: 100, parking: 7.774, phg: 6.732, pct_in: 0.5, pct_out: 0.5 },
+  '613': { name: 'WAREHOUSE', category: 'INDUSTRIAL', variable: 100, parking: 0.377, phg: 0.464, pct_in: 0.44, pct_out: 0.56 },
+  '621': { name: 'MEDIUM INDUSTRY', category: 'INDUSTRIAL', variable: 100, parking: 0.375, phg: 0.52, pct_in: 0.47, pct_out: 0.53 },
+  '631': { name: 'HEAVY INDUSTRY', category: 'INDUSTRIAL', variable: 100, parking: 0.045, phg: 0.061, pct_in: 0.3, pct_out: 0.7 },
+  '701': { name: 'RESIDENTIAL APARTMENTS', category: 'RESIDENTIAL', variable: 100, parking: 0.633, phg: 0.6, pct_in: 0.55, pct_out: 0.45 },
+  '721': { name: 'STANDALONE VILLA', category: 'RESIDENTIAL', variable: 1, parking: 9, phg: 6.324, pct_in: 0.58, pct_out: 0.42 },
+  '722': { name: 'COMPOUND VILLA', category: 'RESIDENTIAL', variable: 1, parking: 1.685, phg: 0.817, pct_in: 0.3, pct_out: 0.7 },
+  '731': { name: 'LABOUR CAMP', category: 'RESIDENTIAL', variable: 100, parking: 0.091, phg: 0.161, pct_in: 0.86, pct_out: 0.14 },
+  '732': { name: 'COMPANY ACCOMODATION', category: 'RESIDENTIAL', variable: 100, parking: 0.139, phg: 0.356, pct_in: 0.69, pct_out: 0.31 },
+  '811': { name: 'GOVERNMENT HOSPITAL', category: 'MEDICAL', variable: 100, parking: 1.721, phg: 3.263, pct_in: 0.49, pct_out: 0.51 },
+  '812': { name: 'PRIVATE HOSPITAL', category: 'MEDICAL', variable: 100, parking: 3.303, phg: 4.062, pct_in: 0.54, pct_out: 0.46 },
+  '821': { name: 'GOVERNMENT CLINIC', category: 'MEDICAL', variable: 100, parking: 4.378, phg: 12.91, pct_in: 0.59, pct_out: 0.41 },
+  '822': { name: 'PRIVATE CLINIC', category: 'MEDICAL', variable: 100, parking: 3.91, phg: 5.225, pct_in: 0.5, pct_out: 0.5 },
+  '831': { name: 'PHARMACY', category: 'MEDICAL', variable: 100, parking: 18.852, phg: 20.838, pct_in: 0.55, pct_out: 0.45 },
+  '911': { name: 'BUS STATION', category: 'TRANSPORT', variable: 100, parking: 1.126, phg: 4.361, pct_in: 0.51, pct_out: 0.49 }
+};
+
+const nameToCode = {};
+const categories = {};
+for (const code in rates) {
+  const r = rates[code];
+  nameToCode[r.name.toUpperCase().trim()] = code;
+  (categories[r.category] = categories[r.category] || []).push({ code: code, name: r.name });
+}
+
+function optionsHtml(selectedCode) {
+  let h = '<option value="">— None —</option>';
+  for (const cat in categories) {
+    h += '<optgroup label="' + cat + '">';
+    categories[cat].forEach(function (it) {
+      h += '<option value="' + it.code + '"' + (it.code === selectedCode ? ' selected' : '') + '>' + it.name + '</option>';
+    });
+    h += '</optgroup>';
+  }
+  return h;
+}
+
+function calc(code, gfa) {
+  if (!code || !gfa || gfa <= 0) return { parking: 0, trips: 0, inbound: 0, outbound: 0 };
+  const r = rates[code];
+  if (!r) return { parking: 0, trips: 0, inbound: 0, outbound: 0 };
+  const trips = (gfa / r.variable) * r.phg;
+  return { parking: (gfa / r.variable) * r.parking, trips: trips, inbound: trips * r.pct_in, outbound: trips * r.pct_out };
+}
+
+function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+function fmtSigned(n) { const r = Math.round(n); return (r > 0 ? '+' : '') + r.toLocaleString('en-US'); }
+function cls(v) { const r = Math.round(v); return r > 0 ? 'up' : (r < 0 ? 'down' : 'zero'); }
+
+// Heatmap background: stronger colour for larger change relative to the column's biggest mover.
+function tint(v, maxAbs) {
+  const r = Math.round(v);
+  if (r === 0 || maxAbs === 0) return '';
+  const a = Math.min(0.55, 0.12 + 0.43 * (Math.abs(v) / maxAbs));
+  return 'background:rgba(' + (r > 0 ? '192,57,43' : '30,132,73') + ',' + a.toFixed(2) + ');';
+}
+
+let actualRows = [];
+let proposedRows = [];
+
+function num(s) {
+  if (s == null || s === '') return null;
+  const v = parseFloat(s.toString().replace(/[^0-9.\-]/g, ''));
+  return isNaN(v) ? null : v;
+}
+
+// Accepts these pipe formats (trips & parking come from the plot layer):
+//   Secondary|GFA|Trips|Parking            (current export)
+//   Primary|Secondary|GFA|Trips|Parking
+//   Secondary|GFA                          (legacy: trips/parking computed from GFA)
+function parsePaste(text) {
+  const out = [];
+  text.split(/\r?\n/).forEach(function (raw) {
+    const line = raw.trim();
+    if (!line) return;
+    const parts = line.split('|').map(function (s) { return s.trim(); });
+    let name, gfaStr, tripsStr = null, parkStr = null;
+    if (parts.length >= 5) { name = parts[1]; gfaStr = parts[2]; tripsStr = parts[3]; parkStr = parts[4]; }
+    else if (parts.length === 4) { name = parts[0]; gfaStr = parts[1]; tripsStr = parts[2]; parkStr = parts[3]; }
+    else if (parts.length === 3) { name = parts[0]; gfaStr = parts[1]; tripsStr = parts[2]; }
+    else if (parts.length === 2) { name = parts[0]; gfaStr = parts[1]; }
+    else return;
+    const gfa = num(gfaStr);
+    if (gfa == null) return; // skips header/total lines
+    const code = nameToCode[(name || '').toUpperCase().trim()] || '';
+    out.push({ name: name, code: code, gfa: gfa, trips: num(tripsStr), parking: num(parkStr) });
+  });
+  return out;
+}
+
+// Actual metrics: trips & parking come from the layer when supplied;
+// inbound/outbound are split from trips using the DTGM directional percentages.
+function actualMetrics(r) {
+  const hasRate = r.code && rates[r.code];
+  const trips = (r.trips != null) ? r.trips : (hasRate ? (r.gfa / rates[r.code].variable) * rates[r.code].phg : 0);
+  const parking = (r.parking != null) ? r.parking : (hasRate ? (r.gfa / rates[r.code].variable) * rates[r.code].parking : 0);
+  const pin = hasRate ? rates[r.code].pct_in : 0.5;   // 50/50 fallback if land use isn't a DTGM category
+  const pout = hasRate ? rates[r.code].pct_out : 0.5;
+  return { trips: trips, parking: parking, inbound: trips * pin, outbound: trips * pout };
+}
+
+function loadSelection() {
+  actualRows = parsePaste(document.getElementById('pasteBox').value);
+  proposedRows = actualRows.map(function (r) { return { name: r.name, code: r.code, gfa: r.gfa }; });
+  renderAll();
+}
+
+function clearAll() {
+  document.getElementById('pasteBox').value = '';
+  actualRows = [];
+  proposedRows = [];
+  renderAll();
+}
+
+function addProposedRow() {
+  proposedRows.push({ name: '', code: '', gfa: 0 });
+  renderProposed();
+  updateGfaTracker();
+  renderCombined();
+}
+
+function removeProposedRow(i) {
+  proposedRows.splice(i, 1);
+  renderProposed();
+  updateGfaTracker();
+  renderCombined();
+}
+
+function renderActual() {
+  const tb = document.getElementById('actualBody');
+  const tf = document.getElementById('actualFoot');
+  if (actualRows.length === 0) {
+    tb.innerHTML = '<tr><td colspan="6" class="empty">Paste a selection above and choose Load.</td></tr>';
+    tf.innerHTML = '';
+    return;
+  }
+  let html = '', tG = 0, tT = 0, tI = 0, tO = 0, tP = 0;
+  actualRows.forEach(function (r) {
+    const c = actualMetrics(r);
+    tG += r.gfa; tT += c.trips; tI += c.inbound; tO += c.outbound; tP += c.parking;
+    const tag = (r.code && rates[r.code])
+      ? '<span class="cat">' + rates[r.code].category + '</span>'
+      : '<span class="nomatch">no DTGM match · 50/50 split</span>';
+    html += '<tr><td class="lu">' + r.name + tag + '</td>'
+          + '<td class="num">' + fmt(r.gfa) + '</td>'
+          + '<td class="num">' + fmt(c.trips) + '</td>'
+          + '<td class="num">' + fmt(c.inbound) + '</td>'
+          + '<td class="num">' + fmt(c.outbound) + '</td>'
+          + '<td class="num">' + fmt(c.parking) + '</td></tr>';
+  });
+  tb.innerHTML = html;
+  tf.innerHTML = '<tr class="total"><td>TOTAL</td><td class="num">' + fmt(tG) + '</td><td class="num">' + fmt(tT)
+    + '</td><td class="num">' + fmt(tI) + '</td><td class="num">' + fmt(tO) + '</td><td class="num">' + fmt(tP) + '</td></tr>';
+}
+
+function renderProposed() {
+  const tb = document.getElementById('proposedBody');
+  if (proposedRows.length === 0) {
+    tb.innerHTML = '<tr><td colspan="7" class="empty">Load a selection, or use “Add land use” to start a proposed scenario.</td></tr>';
+    document.getElementById('proposedFoot').innerHTML = '';
+    return;
+  }
+  let html = '';
+  proposedRows.forEach(function (r, i) {
+    const c = calc(r.code, r.gfa);
+    html += '<tr>'
+      + '<td><select class="row-lu" data-i="' + i + '">' + optionsHtml(r.code) + '</select></td>'
+      + '<td><input type="number" class="row-gfa" data-i="' + i + '" min="0" step="100" value="' + r.gfa + '"></td>'
+      + '<td class="num" id="pT_' + i + '">' + fmt(c.trips) + '</td>'
+      + '<td class="num" id="pI_' + i + '">' + fmt(c.inbound) + '</td>'
+      + '<td class="num" id="pO_' + i + '">' + fmt(c.outbound) + '</td>'
+      + '<td class="num" id="pP_' + i + '">' + fmt(c.parking) + '</td>'
+      + '<td class="rem"><button class="rmv" title="Remove" onclick="removeProposedRow(' + i + ')">×</button></td></tr>';
+  });
+  tb.innerHTML = html;
+  tb.querySelectorAll('.row-gfa').forEach(function (el) { el.addEventListener('input', onProposedEdit); });
+  tb.querySelectorAll('.row-lu').forEach(function (el) { el.addEventListener('change', onProposedEdit); });
+  updateProposedTotals();
+}
+
+function onProposedEdit(e) {
+  const i = +e.target.dataset.i;
+  if (e.target.classList.contains('row-gfa')) {
+    proposedRows[i].gfa = parseFloat((e.target.value || '').toString().replace(/[^0-9.]/g, '')) || 0;
+  } else {
+    const code = e.target.value;
+    proposedRows[i].code = code;
+    if (code && rates[code]) proposedRows[i].name = rates[code].name;
+  }
+  const c = calc(proposedRows[i].code, proposedRows[i].gfa);
+  document.getElementById('pT_' + i).textContent = fmt(c.trips);
+  document.getElementById('pI_' + i).textContent = fmt(c.inbound);
+  document.getElementById('pO_' + i).textContent = fmt(c.outbound);
+  document.getElementById('pP_' + i).textContent = fmt(c.parking);
+  updateProposedTotals();
+  updateGfaTracker();
+  renderCombined();
+}
+
+function updateProposedTotals() {
+  let g = 0, t = 0, ib = 0, ob = 0, p = 0;
+  proposedRows.forEach(function (r) {
+    const c = calc(r.code, r.gfa);
+    g += r.gfa; t += c.trips; ib += c.inbound; ob += c.outbound; p += c.parking;
+  });
+  document.getElementById('proposedFoot').innerHTML =
+    '<tr class="total"><td>TOTAL</td><td class="num">' + fmt(g) + '</td><td class="num">' + fmt(t)
+    + '</td><td class="num">' + fmt(ib) + '</td><td class="num">' + fmt(ob) + '</td><td class="num">' + fmt(p) + '</td><td></td></tr>';
+}
+
+function updateGfaTracker() {
+  const budget = actualRows.reduce(function (s, r) { return s + r.gfa; }, 0);
+  const used = proposedRows.reduce(function (s, r) { return s + r.gfa; }, 0);
+  const remain = budget - used;
+  document.getElementById('gtBudget').textContent = fmt(budget);
+  document.getElementById('gtUsed').textContent = fmt(used);
+  const rEl = document.getElementById('gtRemain');
+  rEl.textContent = fmt(remain);
+  rEl.className = 'gt-v' + (remain < 0 ? ' over' : '');
+}
+
+function renderCombined() {
+  const tb = document.getElementById('combinedBody');
+  const tf = document.getElementById('combinedFoot');
+  const vb = document.getElementById('verdict');
+  if (actualRows.length === 0 && proposedRows.length === 0) {
+    tb.innerHTML = '<tr><td colspan="5" class="empty">No change to show yet.</td></tr>';
+    tf.innerHTML = '';
+    vb.style.display = 'none';
+    return;
+  }
+  let dT = 0, dI = 0, dO = 0, dP = 0, mT = 0, mI = 0, mO = 0, mP = 0;
+  const drows = [];
+  const n = Math.max(actualRows.length, proposedRows.length);
+  for (let i = 0; i < n; i++) {
+    const a = actualRows[i] ? actualMetrics(actualRows[i]) : { trips: 0, inbound: 0, outbound: 0, parking: 0 };
+    const p = proposedRows[i] ? calc(proposedRows[i].code, proposedRows[i].gfa) : { trips: 0, inbound: 0, outbound: 0, parking: 0 };
+    const name = (proposedRows[i] && proposedRows[i].name) || (actualRows[i] && actualRows[i].name) || '(unnamed)';
+    const row = { name: name, t: p.trips - a.trips, ib: p.inbound - a.inbound, ob: p.outbound - a.outbound, pk: p.parking - a.parking };
+    drows.push(row);
+    dT += row.t; dI += row.ib; dO += row.ob; dP += row.pk;
+    mT = Math.max(mT, Math.abs(row.t)); mI = Math.max(mI, Math.abs(row.ib));
+    mO = Math.max(mO, Math.abs(row.ob)); mP = Math.max(mP, Math.abs(row.pk));
+  }
+  function hc(v, mx) { return '<td class="num heat" style="' + tint(v, mx) + '">' + fmtSigned(v) + '</td>'; }
+  let html = '';
+  drows.forEach(function (r) {
+    html += '<tr><td class="lu">' + r.name + '</td>' + hc(r.t, mT) + hc(r.ib, mI) + hc(r.ob, mO) + hc(r.pk, mP) + '</tr>';
+  });
+  tb.innerHTML = html;
+  tf.innerHTML = '<tr class="total"><td>TOTAL</td><td class="num ' + cls(dT) + '">' + fmtSigned(dT)
+    + '</td><td class="num ' + cls(dI) + '">' + fmtSigned(dI) + '</td><td class="num ' + cls(dO) + '">' + fmtSigned(dO)
+    + '</td><td class="num ' + cls(dP) + '">' + fmtSigned(dP) + '</td></tr>';
+
+  // Verdict driven by total trips change
+  const tripsUp = Math.round(dT) > 0;
+  vb.style.display = 'block';
+  vb.className = 'verdict ' + (tripsUp ? 'bad' : 'ok');
+  vb.textContent = (tripsUp ? 'Total trips increase' : 'Total trips do not increase') + '  (Δ ' + fmtSigned(dT) + ' trips)';
+}
+
+function renderAll() {
+  renderActual();
+  renderProposed();
+  updateGfaTracker();
+  renderCombined();
+}
+
+renderAll();
+
+// If the page is opened with ?data=... (from the "Open in Calculator" link),
+// decode it, fill the Load box, and load automatically. Manual paste still works.
+(function () {
+  try {
+    var d = new URLSearchParams(window.location.search).get('data');
+    if (d) {
+      document.getElementById('pasteBox').value = decodeURIComponent(d).split('~').join('\n');
+      loadSelection();
+    }
+  } catch (e) { /* ignore malformed URLs */ }
+})();
+
+</script>
+</body>
+</html>
