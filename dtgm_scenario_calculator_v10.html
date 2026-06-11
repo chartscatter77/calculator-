@@ -153,7 +153,7 @@
   <table class="scn comb">
     <thead>
       <tr>
-        <th class="lu" rowspan="2">Land Use</th>
+        <th class="lu" rowspan="2"></th>
         <th class="grp" colspan="3">PHG (Peak Hour Generator) — Δ</th>
         <th class="num" rowspan="2">Δ Parking</th>
       </tr>
@@ -162,7 +162,7 @@
     <tbody id="combinedBody"></tbody>
     <tfoot id="combinedFoot"></tfoot>
   </table>
-  <div class="legend"><span class="up">Red</span> = more trips &amp; parking, <span class="down">green</span> = fewer — the stronger the shade, the bigger the change.</div>
+  <div class="legend"><span class="up">Red</span> = an increase in trips &amp; parking, <span class="down">green</span> = a reduction.</div>
 </div>
 
 <script>
@@ -290,7 +290,7 @@ function num(s) {
 //   Secondary|GFA                          (legacy: trips/parking computed from GFA)
 function parsePaste(text) {
   const out = [];
-  text.split(/\r?\n/).forEach(function (raw) {
+  text.split(/[\r\n~]+/).forEach(function (raw) {
     const line = raw.trim();
     if (!line) return;
     const parts = line.split('|').map(function (s) { return s.trim(); });
@@ -310,6 +310,11 @@ function parsePaste(text) {
 
 // Actual metrics: trips & parking come from the layer when supplied;
 // inbound/outbound are split from trips using the DTGM directional percentages.
+// Proposed metrics are computed from the user's GFA x DTGM rates.
+function proposedMetrics(r) {
+  return calc(r.code, r.gfa);
+}
+
 function actualMetrics(r) {
   const hasRate = r.code && rates[r.code];
   const trips = (r.trips != null) ? r.trips : (hasRate ? (r.gfa / rates[r.code].variable) * rates[r.code].phg : 0);
@@ -321,7 +326,7 @@ function actualMetrics(r) {
 
 function loadSelection() {
   actualRows = parsePaste(document.getElementById('pasteBox').value);
-  proposedRows = actualRows.map(function (r) { return { name: r.name, code: r.code, gfa: r.gfa }; });
+  proposedRows = [];
   renderAll();
 }
 
@@ -376,13 +381,13 @@ function renderActual() {
 function renderProposed() {
   const tb = document.getElementById('proposedBody');
   if (proposedRows.length === 0) {
-    tb.innerHTML = '<tr><td colspan="7" class="empty">Load a selection, or use “Add land use” to start a proposed scenario.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="7" class="empty">Use “Add land use” below to build a proposed scenario.</td></tr>';
     document.getElementById('proposedFoot').innerHTML = '';
     return;
   }
   let html = '';
   proposedRows.forEach(function (r, i) {
-    const c = calc(r.code, r.gfa);
+    const c = proposedMetrics(r);
     html += '<tr>'
       + '<td><select class="row-lu" data-i="' + i + '">' + optionsHtml(r.code) + '</select></td>'
       + '<td><input type="number" class="row-gfa" data-i="' + i + '" min="0" step="100" value="' + r.gfa + '"></td>'
@@ -407,7 +412,7 @@ function onProposedEdit(e) {
     proposedRows[i].code = code;
     if (code && rates[code]) proposedRows[i].name = rates[code].name;
   }
-  const c = calc(proposedRows[i].code, proposedRows[i].gfa);
+  const c = proposedMetrics(proposedRows[i]);
   document.getElementById('pT_' + i).textContent = fmt(c.trips);
   document.getElementById('pI_' + i).textContent = fmt(c.inbound);
   document.getElementById('pO_' + i).textContent = fmt(c.outbound);
@@ -420,7 +425,7 @@ function onProposedEdit(e) {
 function updateProposedTotals() {
   let g = 0, t = 0, ib = 0, ob = 0, p = 0;
   proposedRows.forEach(function (r) {
-    const c = calc(r.code, r.gfa);
+    const c = proposedMetrics(r);
     g += r.gfa; t += c.trips; ib += c.inbound; ob += c.outbound; p += c.parking;
   });
   document.getElementById('proposedFoot').innerHTML =
@@ -443,36 +448,21 @@ function renderCombined() {
   const tb = document.getElementById('combinedBody');
   const tf = document.getElementById('combinedFoot');
   const vb = document.getElementById('verdict');
-  if (actualRows.length === 0 && proposedRows.length === 0) {
-    tb.innerHTML = '<tr><td colspan="5" class="empty">No change to show yet.</td></tr>';
-    tf.innerHTML = '';
+  tf.innerHTML = '';
+  if (proposedRows.length === 0) {
+    tb.innerHTML = '<tr><td colspan="5" class="empty">No proposed changes yet.</td></tr>';
     vb.style.display = 'none';
     return;
   }
-  let dT = 0, dI = 0, dO = 0, dP = 0, mT = 0, mI = 0, mO = 0, mP = 0;
-  const drows = [];
-  const n = Math.max(actualRows.length, proposedRows.length);
-  for (let i = 0; i < n; i++) {
-    const a = actualRows[i] ? actualMetrics(actualRows[i]) : { trips: 0, inbound: 0, outbound: 0, parking: 0 };
-    const p = proposedRows[i] ? calc(proposedRows[i].code, proposedRows[i].gfa) : { trips: 0, inbound: 0, outbound: 0, parking: 0 };
-    const name = (proposedRows[i] && proposedRows[i].name) || (actualRows[i] && actualRows[i].name) || '(unnamed)';
-    const row = { name: name, t: p.trips - a.trips, ib: p.inbound - a.inbound, ob: p.outbound - a.outbound, pk: p.parking - a.parking };
-    drows.push(row);
-    dT += row.t; dI += row.ib; dO += row.ob; dP += row.pk;
-    mT = Math.max(mT, Math.abs(row.t)); mI = Math.max(mI, Math.abs(row.ib));
-    mO = Math.max(mO, Math.abs(row.ob)); mP = Math.max(mP, Math.abs(row.pk));
-  }
-  function hc(v, mx) { return '<td class="num heat" style="' + tint(v, mx) + '">' + fmtSigned(v) + '</td>'; }
-  let html = '';
-  drows.forEach(function (r) {
-    html += '<tr><td class="lu">' + r.name + '</td>' + hc(r.t, mT) + hc(r.ib, mI) + hc(r.ob, mO) + hc(r.pk, mP) + '</tr>';
-  });
-  tb.innerHTML = html;
-  tf.innerHTML = '<tr class="total"><td>TOTAL</td><td class="num ' + cls(dT) + '">' + fmtSigned(dT)
+  let pT = 0, pI = 0, pO = 0, pP = 0;
+  proposedRows.forEach(function (r) { const m = proposedMetrics(r); pT += m.trips; pI += m.inbound; pO += m.outbound; pP += m.parking; });
+  let aT = 0, aI = 0, aO = 0, aP = 0;
+  actualRows.forEach(function (r) { const m = actualMetrics(r); aT += m.trips; aI += m.inbound; aO += m.outbound; aP += m.parking; });
+  const dT = pT - aT, dI = pI - aI, dO = pO - aO, dP = pP - aP;
+  tb.innerHTML = '<tr class="total"><td>TOTAL</td><td class="num ' + cls(dT) + '">' + fmtSigned(dT)
     + '</td><td class="num ' + cls(dI) + '">' + fmtSigned(dI) + '</td><td class="num ' + cls(dO) + '">' + fmtSigned(dO)
     + '</td><td class="num ' + cls(dP) + '">' + fmtSigned(dP) + '</td></tr>';
 
-  // Verdict driven by total trips change
   const tripsUp = Math.round(dT) > 0;
   vb.style.display = 'block';
   vb.className = 'verdict ' + (tripsUp ? 'bad' : 'ok');
